@@ -1,0 +1,977 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion Admin - Dr. Philippe Kugler</title>
+    <link rel="icon" type="image/x-icon" href="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/images/logo%20caduce%20kugler.png">
+<link rel="icon" type="image/x-icon" href="images/logo-caduce-kugler.png">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.tailwindcss.com">
+    </script>
+<script>
+            // Enhanced Calendar with Notes functionality
+            document.addEventListener('DOMContentLoaded', async function() {
+                await initDB();
+                
+                const calendarEl = document.getElementById('calendar');
+                const calendar = new FullCalendar.Calendar(calendarEl, {
+                    initialView: 'timeGridWeek',
+                    locale: 'fr',
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'timeGridWeek,dayGridMonth,listWeek'
+                    },
+                    slotMinTime: '07:00:00',
+                    slotMaxTime: '19:00:00',
+                    allDaySlot: false,
+                    events: async function(fetchInfo, successCallback, failureCallback) {
+                        const heures = await getHeuresSupplementaires();
+                        const notes = await getNotesForPeriod(fetchInfo.start, fetchInfo.end);
+                        
+                        const events = [
+                            ...heures.map(heure => ({
+                                title: `${heure.employe} - ${heure.duree}h`,
+                                start: `${heure.date}T${heure.heureDebut}`,
+                                end: `${heure.date}T${heure.heureFin}`,
+                                backgroundColor: '#0d9488',
+                                borderColor: '#0d9488',
+                                extendedProps: { ...heure, type: 'heures' }
+                            })),
+                            ...notes.map(note => ({
+                                title: '📝 Note',
+                                start: note.date,
+                                allDay: true,
+                                backgroundColor: '#6366f1',
+                                borderColor: '#6366f1',
+                                extendedProps: { ...note, type: 'note' }
+                            }))
+                        ];
+                        
+                        successCallback(events);
+                    },
+                    eventClick: function(info) {
+                        const event = info.event;
+                        if (event.extendedProps.type === 'heures') {
+                            const heure = event.extendedProps;
+                            document.getElementById('employe').value = heure.employeId;
+                            document.getElementById('date').value = heure.date;
+                            document.getElementById('heure-debut').value = heure.heureDebut;
+                            document.getElementById('heure-fin').value = heure.heureFin;
+                            document.getElementById('motif').value = heure.motif || '';
+                        } else if (event.extendedProps.type === 'note') {
+                            openNoteModal(event.startStr, event.extendedProps.content);
+                        }
+                    },
+                    dateClick: function(info) {
+                        openNoteModal(info.dateStr);
+                    }
+                });
+
+                calendar.render();
+
+                // Load today's notes
+                loadDailyNotes(new Date().toISOString().split('T')[0]);
+
+                // Add note button
+                document.getElementById('add-note-btn').addEventListener('click', function() {
+                    openNoteModal(new Date().toISOString().split('T')[0]);
+                });
+
+                // Quick note functionality
+                document.getElementById('save-quick-note').addEventListener('click', async function() {
+                    const content = document.getElementById('quick-note').value.trim();
+                    if (content) {
+                        await saveNoteToDB(new Date().toISOString().split('T')[0], content);
+                        document.getElementById('quick-note').value = '';
+                        calendar.refetchEvents();
+                        loadDailyNotes(new Date().toISOString().split('T')[0]);
+                        showToast('Note enregistrée avec succès');
+                    }
+                });
+
+                // Calendar date change
+                calendar.on('datesSet', function(info) {
+                    const visibleDates = info.view.currentStart;
+                    loadDailyNotes(visibleDates.toISOString().split('T')[0]);
+                });
+            });
+
+            async function getNotesForPeriod(start, end) {
+                const allNotes = await getAllNotes();
+                return allNotes.filter(note => {
+                    const noteDate = new Date(note.date);
+                    return noteDate >= start && noteDate <= end;
+                });
+            }
+
+            async function getAllNotes() {
+                const transaction = db.transaction(['calendarNotes'], 'readonly');
+                const store = transaction.objectStore('calendarNotes');
+                return new Promise((resolve, reject) => {
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result || []);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async function loadDailyNotes(date) {
+                const notesContainer = document.getElementById('daily-notes');
+                const notes = await getNotesForDate(date);
+                
+                if (notes.length === 0) {
+                    notesContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Aucune note pour cette journée</p>';
+                    return;
+                }
+                
+                notesContainer.innerHTML = notes.map(note => `
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-sm text-gray-500">${new Date(note.date).toLocaleDateString('fr-FR')}</span>
+                            <button class="text-red-500 delete-note-btn" data-date="${note.date}">
+                                <i data-feather="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p class="text-gray-700">${note.content}</p>
+                    </div>
+                `).join('');
+                
+                // Add delete handlers
+                document.querySelectorAll('.delete-note-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        if (confirm('Supprimer cette note ?')) {
+                            await deleteNote(this.getAttribute('data-date'));
+                            loadDailyNotes(date);
+                            document.querySelector('#calendar').__fullCalendar.refetchEvents();
+                        }
+                    });
+                });
+                
+                feather.replace();
+            }
+
+            function showToast(message) {
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+// Initialisation de la base de données
+        let db;
+        const DB_NAME = 'DrKuglerAdminDB';
+        const DB_VERSION = 1;
+        const STORE_NOTES = 'calendarNotes';
+        const STORE_HOURS = 'heuresSupplementaires';
+        const STORE_ANNOUNCEMENTS = 'annonces';
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onupgradeneeded = (event) => {
+                    db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NOTES)) {
+                        db.createObjectStore(STORE_NOTES, { keyPath: 'date' });
+                    }
+                    if (!db.objectStoreNames.contains(STORE_HOURS)) {
+                        db.createObjectStore(STORE_HOURS, { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains(STORE_ANNOUNCEMENTS)) {
+                        db.createObjectStore(STORE_ANNOUNCEMENTS, { keyPath: 'id' });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    console.error('Database error:', event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        // Fonctions pour gérer les notes
+        let currentSelectedDate = null;
+        
+        async function openNoteModal(date) {
+            currentSelectedDate = date;
+            const modal = document.getElementById('note-modal');
+            const modalDate = document.getElementById('note-modal-date');
+            const noteContent = document.getElementById('note-content');
+            
+            // Récupérer les notes existantes depuis IndexedDB
+            const note = await getNote(date);
+            noteContent.value = note ? note.content : '';
+            
+            modalDate.textContent = `Notes pour le ${new Date(date).toLocaleDateString('fr-FR')}`;
+            modal.classList.remove('hidden');
+            feather.replace();
+        }
+        
+        function closeNoteModal() {
+            document.getElementById('note-modal').classList.add('hidden');
+        }
+        
+        async function saveNote() {
+            const noteContent = document.getElementById('note-content').value;
+            
+            if (noteContent.trim()) {
+                await saveNoteToDB(currentSelectedDate, noteContent);
+            } else {
+                await deleteNote(currentSelectedDate);
+            }
+            
+            closeNoteModal();
+            document.querySelector('#calendar').__fullCalendar.refetchEvents();
+        }
+
+        // Fonctions IndexedDB
+        function getNote(date) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NOTES], 'readonly');
+                const store = transaction.objectStore(STORE_NOTES);
+                const request = store.get(date);
+                
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function saveNoteToDB(date, content) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NOTES], 'readwrite');
+                const store = transaction.objectStore(STORE_NOTES);
+                const request = store.put({ date, content });
+                
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function deleteNote(date) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NOTES], 'readwrite');
+                const store = transaction.objectStore(STORE_NOTES);
+                const request = store.delete(date);
+                
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // Fonctions pour les heures supplémentaires
+        async function saveHeuresSupplementaires(heure) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_HOURS], 'readwrite');
+                const store = transaction.objectStore(STORE_HOURS);
+                const request = store.put(heure);
+                
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getHeuresSupplementaires() {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_HOURS], 'readonly');
+                const store = transaction.objectStore(STORE_HOURS);
+                const request = store.getAll();
+                
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deleteHeureSupplementaire(id) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_HOURS], 'readwrite');
+                const store = transaction.objectStore(STORE_HOURS);
+                const request = store.delete(id);
+                
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // Initialisation au chargement
+        document.addEventListener('DOMContentLoaded', async function() {
+            await initDB();
+            // Reste du code...
+        });
+    </script>
+<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="font-sans bg-gray-50">
+  <burger-menu></burger-menu>
+<main class="container mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-8">
+            <div class="flex items-center gap-4">
+                <h1 class="text-2xl font-bold text-gray-800">Espace Administrateur</h1>
+</div>
+            <a href="admin-login.html" id="logout-btn" class="text-red-600 hover:text-red-800 flex items-center" onclick="localStorage.removeItem('isAuthenticated')">
+                <i data-feather="log-out" class="mr-2"></i>
+                Déconnexion
+            </a>
+</div>
+        <div class="mb-8">
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8" id="annonces-section">
+<h2 class="text-xl font-semibold mb-4 text-gray-800">Ajouter une nouvelle annonce</h2>
+            <form id="add-annonce-form" class="space-y-4">
+                <div>
+                    <label for="annonce-title" class="block text-gray-700 mb-2">Titre</label>
+                    <input type="text" id="annonce-title" required 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                
+                <div>
+                    <label for="annonce-content" class="block text-gray-700 mb-2">Contenu</label>
+                    <textarea id="annonce-content" rows="4" required 
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
+                </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="annonce-image" class="block text-gray-700 mb-2">Image</label>
+                            <div class="flex items-center gap-2">
+                                <label for="image-upload" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition">
+                                    <i data-feather="upload" class="w-4 h-4 mr-2"></i>
+                                    Télécharger
+                                </label>
+                                <input type="file" id="image-upload" accept="image/*" class="hidden">
+                                <span id="image-filename" class="text-sm text-gray-500 truncate max-w-xs">Aucun fichier sélectionné</span>
+                            </div>
+                            <div id="image-preview" class="mt-2 hidden">
+                                <img src="" alt="Aperçu de l'image" class="max-h-40 rounded-lg">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="annonce-video" class="block text-gray-700 mb-2">Vidéo (max 60s)</label>
+                            <div class="flex items-center gap-2">
+                                <label for="video-upload" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition">
+                                    <i data-feather="upload" class="w-4 h-4 mr-2"></i>
+                                    Télécharger
+                                </label>
+                                <input type="file" id="video-upload" accept="video/*" class="hidden">
+                                <span id="video-filename" class="text-sm text-gray-500 truncate max-w-xs">Aucun fichier sélectionné</span>
+                            </div>
+                            <div id="video-preview" class="mt-2 hidden">
+                                <video controls class="max-h-40 rounded-lg">
+                                    <source src="" type="video/mp4">
+                                </video>
+                            </div>
+                        </div>
+                    </div>
+<div class="flex items-center">
+                    <input type="checkbox" id="annonce-important" class="mr-2">
+                    <label for="annonce-important" class="text-gray-700">Annonce importante</label>
+                </div>
+                                <button type="submit" class="bg-[#305CDE] hover:bg-[#2646b1] text-white px-4 py-2 rounded-lg">
+Ajouter l'annonce
+                </button>
+            </form>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8" id="annonces-section">
+<h2 class="text-xl font-semibold mb-4 text-gray-800">Annonces existantes</h2>
+            <div id="annonces-list" class="space-y-4">
+                <!-- Les annonces sont chargées ici dynamiquement -->
+            </div>
+        </div>
+
+        <!-- Gestion de l'image de garde médicale -->
+        <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Gestion de l'image de garde médicale</h2>
+            <div class="flex flex-col md:flex-row gap-6">
+                <div class="md:w-1/2">
+                    <img id="current-garde-image" 
+                         src="${localStorage.getItem('gardeMedicaleImage') || 'https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/images/69015.jpg'}" 
+                         alt="Image actuelle de garde médicale" 
+                         class="w-full h-auto rounded-lg shadow-md">
+                </div>
+                <div class="md:w-1/2">
+                    <form id="garde-image-form" class="space-y-4">
+                        <div>
+                            <label for="garde-image-upload" class="block text-gray-700 mb-2">Nouvelle image</label>
+                            <div class="flex items-center gap-2">
+                                <label for="garde-image-upload" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition">
+                                    <i data-feather="upload" class="w-4 h-4 mr-2"></i>
+                                    Télécharger
+                                </label>
+                                <input type="file" id="garde-image-upload" accept="image/*" class="hidden">
+                                <span id="garde-image-filename" class="text-sm text-gray-500 truncate max-w-xs">Aucun fichier sélectionné</span>
+                            </div>
+                            <div id="garde-image-preview" class="mt-2 hidden">
+                                <img src="" alt="Aperçu de la nouvelle image" class="max-h-40 rounded-lg">
+                            </div>
+                        </div>
+                        <button type="submit" class="bg-[#305CDE] hover:bg-[#2646b1] text-white px-4 py-2 rounded-lg">
+Mettre à jour l'image
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gestion des CV -->
+        <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Gestion des Candidatures</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Formulaire de dépôt -->
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4">Déposer un nouveau CV</h3>
+                    <form id="candidature-form" class="space-y-4">
+                        <div>
+                            <label for="candidat-nom" class="block text-gray-700 mb-2">Nom du candidat*</label>
+                            <input type="text" id="candidat-nom" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        
+                        <div>
+                            <label for="candidat-poste" class="block text-gray-700 mb-2">Poste visé*</label>
+                            <input type="text" id="candidat-poste" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        
+                        <div>
+                            <label for="candidat-date" class="block text-gray-700 mb-2">Date de dépôt*</label>
+                            <input type="date" id="candidat-date" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        
+                        <div>
+                            <label for="cv-upload" class="block text-gray-700 mb-2">CV (PDF)*</label>
+                            <div class="flex items-center gap-2">
+                                <label for="cv-upload" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition">
+                                    <i data-feather="upload" class="w-4 h-4 mr-2"></i>
+                                    Télécharger CV
+                                </label>
+                                <input type="file" id="cv-upload" accept=".pdf" class="hidden">
+                                <span id="cv-filename" class="text-sm text-gray-500 truncate max-w-xs">Aucun fichier sélectionné</span>
+                            </div>
+                        </div>
+                            <button type="submit" class="bg-[#305CDE] hover:bg-[#2646b1] text-white px-4 py-2 rounded-lg">
+Enregistrer la candidature
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Liste des candidatures -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Candidatures reçues</h3>
+                    <div id="candidatures-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Les candidatures seront chargées ici -->
+                        <template id="candidature-template">
+                            <candidature-card data-candidature=""></candidature-card>
+                        </template>
+                    </div>
+</div>
+            </div>
+        </div>
+    </main>
+    <script src="components/candidature-card.js"></script>
+    <script src="components/burger-menu.js"></script>
+<script src="script.js"></script>
+    <script>
+        // Gestion des CV
+        document.addEventListener('DOMContentLoaded', async function() {
+            await initDB();
+            loadCandidatures();
+            
+            // Gestion du formulaire
+            let selectedCV = null;
+            
+            document.getElementById('cv-upload').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file && file.type === 'application/pdf') {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        selectedCV = event.target.result;
+                        document.getElementById('cv-filename').textContent = file.name;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    alert('Veuillez sélectionner un fichier PDF');
+                    this.value = '';
+                }
+            });
+            
+            document.getElementById('candidature-form').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                if (!selectedCV) {
+                    alert('Veuillez sélectionner un CV');
+                    return;
+                }
+                
+                const candidature = {
+                    id: Date.now(),
+                    nom: document.getElementById('candidat-nom').value,
+                    poste: document.getElementById('candidat-poste').value,
+                    date: document.getElementById('candidat-date').value || new Date().toISOString(),
+                    cvUrl: selectedCV,
+                    createdAt: new Date().toISOString()
+                };
+                
+                await saveCandidature(candidature);
+                
+                // Réinitialiser le formulaire
+                this.reset();
+                document.getElementById('cv-filename').textContent = 'Aucun fichier sélectionné';
+                selectedCV = null;
+                
+                // Recharger la liste
+                loadCandidatures();
+                
+                showToast('Candidature enregistrée avec succès');
+            });
+            
+            // Écouter les suppressions
+            document.addEventListener('delete-candidature', async (e) => {
+                await deleteCandidature(e.detail);
+                loadCandidatures();
+                showToast('Candidature supprimée');
+            });
+        // Charger les employés au démarrage
+        await loadEmployees();
+
+        // Gestion des employés
+        document.getElementById('open-employee-modal-btn').addEventListener('click', openEmployeeModal);
+        document.getElementById('close-employee-modal-btn').addEventListener('click', closeEmployeeModal);
+        document.getElementById('cancel-employee-btn').addEventListener('click', closeEmployeeModal);
+        document.getElementById('add-employee-btn').addEventListener('click', addEmployee);
+
+        // Handle form submission
+        document.getElementById('candidature-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('cv-upload');
+            if (!fileInput.files[0]) {
+                alert('Veuillez sélectionner un fichier PDF');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                const candidature = {
+                    id: Date.now(),
+                    nom: document.getElementById('candidat-nom').value,
+                    poste: document.getElementById('candidat-poste').value,
+                    date: document.getElementById('candidat-date').value || new Date().toISOString().split('T')[0],
+                    cvUrl: event.target.result,
+                    cvFilename: fileInput.files[0].name,
+                    createdAt: new Date().toISOString()
+                };
+                
+                await saveCandidature(candidature);
+                
+                // Reset form
+                document.getElementById('candidature-form').reset();
+                document.getElementById('cv-filename').textContent = 'Aucun fichier sélectionné';
+                
+                loadCandidatures();
+                showToast('Candidature enregistrée avec succès');
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        });
+
+        // Rafraîchir le sélecteur d'employés après ajout/suppression
+        document.addEventListener('employee-updated', async () => {
+            await loadEmployees();
+        });
+});
+        async function loadCandidatures() {
+            try {
+                const candidatures = await getCandidatures();
+                const container = document.getElementById('candidatures-list');
+                
+                if (candidatures.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-4 col-span-full">Aucune candidature enregistrée</p>';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                candidatures.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                           .forEach(candidature => {
+                    const card = document.createElement('candidature-card');
+                    card.setAttribute('data-candidature', JSON.stringify(candidature));
+                    container.appendChild(card);
+                });
+                
+                feather.replace();
+            } catch (error) {
+                console.error('Erreur de chargement des candidatures:', error);
+                showToast('Erreur de chargement des candidatures', 'error');
+            }
+        }
+</script>
+<script>
+        feather.replace();
+        
+        // Vérification de l'authentification
+        if (!localStorage.getItem('isAuthenticated')) {
+            window.location.href = 'admin-login.html';
+        }
+        // Configuration du calendrier
+        document.addEventListener('DOMContentLoaded', async function() {
+            await initDB();
+            
+            const calendarEl = document.getElementById('calendar');
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'fr',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                        events: [
+                            ...(await getHeuresSupplementaires()).map(heure => ({
+                                title: `${heure.employe} - ${heure.duree}h`,
+                                start: `${heure.date}T${heure.heureDebut}`,
+                                end: `${heure.date}T${heure.heureFin}`,
+                                backgroundColor: '#0d9488',
+                                borderColor: '#0d9488',
+                                extendedProps: { ...heure, type: 'heures' }
+                            })),
+                            ...(await getNotesForPeriod(fetchInfo.start, fetchInfo.end)).map(note => ({
+                                title: '📝 Note',
+                                start: note.date,
+                                allDay: true,
+                                backgroundColor: '#6366f1',
+                                borderColor: '#6366f1',
+                                extendedProps: { ...note, type: 'note' }
+                            }))
+                        ],
+                dateClick: function(info) {
+                    document.getElementById('date').value = info.dateStr;
+                    openNoteModal(info.dateStr);
+                },
+                eventClick: function(info) {
+                    const event = info.event;
+                    if (event.extendedProps.type === 'heures') {
+                        const heure = event.extendedProps;
+                        document.getElementById('employe').value = heure.employeId;
+                        document.getElementById('date').value = heure.date;
+                        document.getElementById('heure-debut').value = heure.heureDebut;
+                        document.getElementById('heure-fin').value = heure.heureFin;
+                        document.getElementById('motif').value = heure.motif || '';
+                    } else if (event.extendedProps.type === 'note') {
+                        openNoteModal(event.startStr, event.extendedProps.content);
+                    }
+                },
+eventClick: function(info) {
+                    const heure = info.event.extendedProps;
+                    document.getElementById('employe').value = heure.employeId;
+                    document.getElementById('date').value = heure.date;
+                    document.getElementById('heure-debut').value = heure.heureDebut;
+                    document.getElementById('heure-fin').value = heure.heureFin;
+                    document.getElementById('motif').value = heure.motif || '';
+                },
+                eventDidMount: function(info) {
+                    if (info.event.extendedProps.note) {
+                        const noteIcon = document.createElement('i');
+                        noteIcon.setAttribute('data-feather', 'file-text');
+                        noteIcon.className = 'w-3 h-3 ml-1 text-blue-500';
+                        info.el.querySelector('.fc-event-title').appendChild(noteIcon);
+                        feather.replace();
+                    }
+                }
+});
+            calendar.render();
+
+            // Chargement de l'historique
+            loadHeuresSupplementaires();
+
+            // Gestion du formulaire
+            document.getElementById('heures-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const employeSelect = document.getElementById('employe');
+                const employeId = employeSelect.value;
+                const employe = employeSelect.options[employeSelect.selectedIndex].text.split(' - ')[0];
+                const date = document.getElementById('date').value;
+                const heureDebut = document.getElementById('heure-debut').value;
+                const heureFin = document.getElementById('heure-fin').value;
+                const motif = document.getElementById('motif').value;
+
+                // Calcul de la durée
+                const debut = new Date(`2000-01-01T${heureDebut}`);
+                const fin = new Date(`2000-01-01T${heureFin}`);
+                const duree = ((fin - debut) / (1000 * 60 * 60)).toFixed(2);
+
+                const nouvelleHeure = {
+                    id: Date.now(),
+                    employeId,
+                    employe,
+                    date,
+                    heureDebut,
+                    heureFin,
+                    duree,
+                    motif,
+                    createdAt: new Date().toISOString()
+                };
+                // Sauvegarde dans IndexedDB
+                await saveHeuresSupplementaires(nouvelleHeure);
+// Rafraîchir l'affichage
+                calendar.refetchEvents();
+                loadHeuresSupplementaires();
+                this.reset();
+
+                // Afficher un message de succès
+                alert('Heures supplémentaires enregistrées avec succès !');
+            });
+
+            // Bouton reset
+            document.getElementById('reset-btn').addEventListener('click', function() {
+                document.getElementById('heures-form').reset();
+            });
+            // Gestion de la déconnexion
+            document.getElementById('logout-btn').addEventListener('click', function() {
+                localStorage.removeItem('isAuthenticated');
+                window.location.href = 'admin-login.html';
+            });
+});
+        // Chargement des heures supplémentaires
+        async function loadHeuresSupplementaires() {
+            const heures = await getHeuresSupplementaires();
+const tbody = document.getElementById('heures-liste');
+            
+            tbody.innerHTML = heures.length === 0 ? 
+                '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Aucune heure supplémentaire enregistrée</td></tr>' :
+                heures.map(heure => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${heure.employe}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${new Date(heure.date).toLocaleDateString('fr-FR')}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${heure.heureDebut} - ${heure.heureFin}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${heure.duree}h</td>
+                        <td class="px-6 py-4">${heure.motif || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <button class="text-red-500 delete-heure" data-id="${heure.id}">
+                                <i data-feather="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+
+            // Ajout des événements de suppression
+            document.querySelectorAll('.delete-heure').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (confirm('Supprimer cette entrée ?')) {
+                        const id = parseInt(this.getAttribute('data-id'));
+                        deleteHeureSupplementaire(id);
+                    }
+                });
+            });
+
+            feather.replace();
+        }
+        // Suppression d'une heure supplémentaire
+        async function deleteHeureSupplementaire(id) {
+            await deleteHeureSupplementaireDB(id);
+            await loadHeuresSupplementaires();
+            document.querySelector('#calendar').__fullCalendar.refetchEvents();
+        }
+// Gestion du téléchargement d'images/vidéos
+        let selectedImage = null;
+        let selectedVideo = null;
+        // Gestion du téléchargement d'images/vidéos
+        let selectedImage = null;
+        let selectedVideo = null;
+        let selectedVideoFile = null;
+        
+        document.getElementById('image-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                document.getElementById('image-filename').textContent = file.name;
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const preview = document.getElementById('image-preview');
+                    preview.querySelector('img').src = event.target.result;
+                    preview.classList.remove('hidden');
+                    selectedImage = {
+                        url: event.target.result,
+                        file: file
+                    };
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert('Veuillez sélectionner un fichier image valide (JPEG, PNG, etc.)');
+                this.value = '';
+            }
+        });
+        
+        document.getElementById('video-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('video/')) {
+                document.getElementById('video-filename').textContent = file.name;
+                const preview = document.getElementById('video-preview');
+                const videoElement = preview.querySelector('video');
+                const videoURL = URL.createObjectURL(file);
+                videoElement.querySelector('source').src = videoURL;
+                videoElement.load();
+                preview.classList.remove('hidden');
+                selectedVideo = videoURL;
+                selectedVideoFile = file;
+            } else {
+                alert('Veuillez sélectionner un fichier vidéo valide (MP4, WebM, etc.)');
+                this.value = '';
+            }
+        });
+// Chargement des annonces existantes
+        function loadAnnonces() {
+            const annonces = JSON.parse(localStorage.getItem('annonces') || '[]');
+            const annoncesList = document.getElementById('annonces-list');
+            annoncesList.innerHTML = '';
+            
+            annonces.forEach((annonce, index) => {
+                const annonceElement = document.createElement('div');
+                annonceElement.className = 'bg-gray-50 p-4 rounded-lg border border-gray-200';
+                annonceElement.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <h3 class="font-semibold ${annonce.important ? 'text-red-600' : 'text-gray-800'}">${annonce.title}</h3>
+                        <button class="text-red-500 delete-btn" data-index="${index}">
+                            <i data-feather="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <p class="text-gray-600 mt-2">${annonce.content}</p>
+                    ${annonce.image ? `<img src="${annonce.image}" class="mt-2 rounded-lg max-h-40 object-cover">` : ''}
+                    ${annonce.video ? `
+                        <video controls class="mt-2 rounded-lg max-h-40 w-full">
+                            <source src="${annonce.video}" type="video/mp4">
+                        </video>
+                    ` : ''}
+                `;
+                annoncesList.appendChild(annonceElement);
+            });
+            feather.replace();
+// Ajout des événements de suppression
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    deleteAnnonce(index);
+                });
+            });
+        }
+        // Ajout d'une nouvelle annonce
+        document.getElementById('add-annonce-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const title = document.getElementById('annonce-title').value;
+            const content = document.getElementById('annonce-content').value;
+            const important = document.getElementById('annonce-important').checked;
+            
+            const annonce = {
+                id: Date.now(),
+                title,
+                content,
+                important,
+                date: new Date().toLocaleDateString('fr-FR'),
+                createdAt: new Date().toISOString()
+            };
+            
+            try {
+                // Sauvegarde de l'image si elle existe
+                if (selectedImage) {
+                    const imageData = await readFileAsBase64(selectedImage.file);
+                    annonce.image = imageData;
+                    annonce.imageName = selectedImage.file.name;
+                }
+                
+                // Sauvegarde de la vidéo si elle existe
+                if (selectedVideoFile) {
+                    const videoData = await readFileAsBase64(selectedVideoFile);
+                    annonce.video = videoData;
+                    annonce.videoName = selectedVideoFile.name;
+                }
+                // Sauvegarde dans IndexedDB
+                await saveAnnonce(annonce);
+                
+                // Réinitialisation du formulaire
+                this.reset();
+                document.getElementById('image-preview').classList.add('hidden');
+                document.getElementById('video-preview').classList.add('hidden');
+                document.getElementById('image-filename').textContent = 'Aucun fichier sélectionné';
+                document.getElementById('video-filename').textContent = 'Aucun fichier sélectionné';
+                selectedImage = null;
+                selectedVideo = null;
+                selectedVideoFile = null;
+                
+                showToast('Annonce enregistrée avec succès');
+                loadAnnonces();
+            } catch (error) {
+                console.error('Erreur lors de la sauvegarde:', error);
+                showToast('Erreur lors de la sauvegarde', 'error');
+            }
+loadAnnonces();
+            
+            // Rafraîchir la page des annonces publiques si ouverte
+            if (window.opener) {
+                window.opener.location.reload();
+            }
+        });
+        
+        // Suppression d'une annonce
+        function deleteAnnonce(index) {
+            const annonces = JSON.parse(localStorage.getItem('annonces') || '[]');
+            annonces.splice(index, 1);
+            localStorage.setItem('annonces', JSON.stringify(annonces));
+            loadAnnonces();
+            
+            // Rafraîchir la page des annonces publiques si ouverte
+            if (window.opener) {
+                window.opener.location.reload();
+            }
+        }
+        // Chargement initial
+        loadAnnonces();
+        // Fonction pour lire un fichier en base64
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Gestion de l'image de garde médicale
+        let selectedGardeImage = null;
+document.getElementById('garde-image-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('garde-image-filename').textContent = file.name;
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const preview = document.getElementById('garde-image-preview');
+                    preview.querySelector('img').src = event.target.result;
+                    preview.classList.remove('hidden');
+                    selectedGardeImage = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('garde-image-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (selectedGardeImage) {
+                localStorage.setItem('gardeMedicaleImage', selectedGardeImage);
+                document.getElementById('current-garde-image').src = selectedGardeImage;
+                alert('Image de garde médicale mise à jour avec succès !');
+                this.reset();
+                document.getElementById('garde-image-preview').classList.add('hidden');
+                document.getElementById('garde-image-filename').textContent = 'Aucun fichier sélectionné';
+                selectedGardeImage = null;
+            } else {
+                alert('Veuillez sélectionner une image');
+            }
+        });
+    </script>
+</body>
+</html>

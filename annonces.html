@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Annonces - Dr. Philippe Kugler</title>
+    <link rel="icon" type="image/x-icon" href="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/images/logo%20caduce%20kugler.png">
+<link rel="icon" type="image/x-icon" href="images/logo-caduce-kugler.png">
+<link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="font-sans bg-gray-50">
+  <burger-menu></burger-menu>
+<main class="container mx-auto px-4 py-12 relative">
+        <a href="/" class="absolute top-4 left-4 flex items-center text-blue-600 hover:text-blue-800 transition-colors">
+            <i data-feather="arrow-left" class="mr-2 text-blue-600"></i>
+Retour à l'accueil
+        </a>
+
+        <h1 class="text-4xl font-bold text-center mb-12 text-gray-800">Annonces du cabinet</h1>
+        <div class="max-w-4xl mx-auto space-y-6">
+                <div id="annonces-container" class="space-y-6">
+                    <!-- Les annonces sont chargées ici dynamiquement -->
+                </div>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const annoncesContainer = document.getElementById('annonces-container');
+                        const annonces = JSON.parse(localStorage.getItem('annonces') || '[]').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                if (annonces.length === 0) {
+                    annoncesContainer.innerHTML = `
+                        <div class="bg-white rounded-xl shadow-md p-6 text-center text-gray-500">
+                            Aucune annonce pour le moment.
+                        </div>
+                    `;
+                    document.getElementById('announcement-image-container').classList.remove('hidden');
+                    return;
+                } else {
+                    document.getElementById('announcement-image-container').classList.add('hidden');
+                }
+annonces.forEach(annonce => {
+const annonceElement = document.createElement('div');
+                            annonceElement.className = `bg-white rounded-xl shadow-md p-6 border-l-4 ${annonce.important ? 'border-red-500' : 'border-blue-500'}`;
+                            
+                            let content = `
+                                <div class="flex justify-between items-start">
+                                    <h2 class="text-2xl font-semibold ${annonce.important ? 'text-red-600' : 'text-gray-800'}">${annonce.title}</h2>
+                                    ${annonce.important ? '<span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">Important</span>' : ''}
+                                </div>
+                                <p class="mt-4 text-gray-600">${annonce.content}</p>
+                            `;
+                            
+                            if (annonce.image) {
+                                content += `
+                                    <div class="mt-4">
+                                        <img src="${annonce.image}" alt="Annonce" class="rounded-lg w-full h-auto">
+                                    </div>
+`;
+                            }
+                            
+                            if (annonce.video) {
+                                content += `
+                                    <div class="mt-4">
+                                        <video controls class="w-full rounded-lg">
+                                            <source src="${annonce.video}" type="video/mp4">
+                                        </video>
+                                    </div>
+                                `;
+                            }
+                            
+                            content += `<p class="mt-4 text-sm text-gray-500">Publié le ${annonce.date}</p>`;
+                            
+                            annonceElement.innerHTML = content;
+                            annoncesContainer.appendChild(annonceElement);
+                        });
+                    });
+                </script>
+</div>
+        <div id="announcement-image-container" class="mt-12 flex justify-center">
+            <img src="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/images/image%20arbre%20kugler.jpg"
+                 alt="Arbre et cabinet médical" 
+                 class="rounded-xl shadow-lg max-w-full h-auto">
+        </div>
+</main>
+
+    <custom-footer></custom-footer>
+    <script src="components/footer.js"></script>
+    <script src="components/burger-menu.js"></script>
+<script src="script.js"></script>
+    <script>
+        feather.replace();
+        document.addEventListener('DOMContentLoaded', function() {
+            const annoncesContainer = document.getElementById('annonces-container');
+            const imageContainer = document.getElementById('announcement-image-container');
+            const annonces = JSON.parse(localStorage.getItem('annonces') || '[]');
+            
+            if (annonces.length === 0) {
+                annoncesContainer.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-md p-6 text-center text-gray-500">
+                        Aucune annonce pour le moment.
+                    </div>
+                `;
+                imageContainer.classList.remove('hidden');
+            } else {
+                imageContainer.classList.add('hidden');
+annonces.forEach(annonce => {
+                const annonceElement = document.createElement('div');
+                annonceElement.className = `bg-white rounded-xl shadow-md p-6 border-l-4 ${annonce.important ? 'border-red-500' : 'border-blue-500'}`;
+                
+                let content = `
+                    <div class="flex justify-between items-start">
+                        <h2 class="text-2xl font-semibold ${annonce.important ? 'text-red-600' : 'text-gray-800'}">${annonce.title}</h2>
+                        ${annonce.important ? '<span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">Important</span>' : ''}
+                    </div>
+                    <p class="mt-4 text-gray-600">${annonce.content}</p>
+                `;
+                
+                if (annonce.image) {
+                    content += `
+                        <div class="mt-4">
+                            <img src="${annonce.image}" alt="Annonce" class="rounded-lg w-full h-auto">
+                        </div>
+`;
+                }
+                
+                content += `<p class="mt-4 text-sm text-gray-500">Publié le ${annonce.date}</p>`;
+                
+                annonceElement.innerHTML = content;
+                annoncesContainer.appendChild(annonceElement);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion Heures Supplémentaires - Dr. Philippe Kugler</title>
+    <link rel="icon" type="image/x-icon" href="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/images/logo%20caduce%20kugler.png">
+<link rel="icon" type="image/x-icon" href="images/logo-caduce-kugler.png">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.tailwindcss.com">
+    </script>
+    
+    <!-- Modal pour les notes -->
+    <div id="note-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold" id="note-modal-date">Notes</h3>
+                <button onclick="closeNoteModal()" class="text-gray-500 hover:text-gray-700">
+                    <i data-feather="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <textarea id="note-content" rows="5" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"></textarea>
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeNoteModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg">
+                    Annuler
+                </button>
+                <button onclick="saveNote()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">
+                    Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+    <script src="admin-db.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/fr.min.js"></script>
+</head>
+<body class="font-sans bg-gray-50">
+  <burger-menu></burger-menu>
+<main class="container mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-800">Gestion des Heures Supplémentaires</h1>
+            <a href="admin-login.html" id="logout-btn" class="text-red-600 hover:text-red-800 flex items-center" onclick="localStorage.removeItem('isAuthenticated')">
+                <i data-feather="log-out" class="mr-2"></i>
+                Déconnexion
+            </a>
+</div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                    <div id="calendar" class="w-full"></div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-md p-6 sticky top-4">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">Enregistrer des heures</h2>
+                    <form id="heures-form" class="space-y-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <select id="employe" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                <option value="">Sélectionner un employé*</option>
+                            </select>
+                            <button type="button" onclick="openEmployeeModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 p-2 rounded-lg">
+                                <i data-feather="plus" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+<div>
+                            <label for="date" class="block text-gray-700 mb-2">Date*</label>
+                            <input type="date" id="date" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="heure-debut" class="block text-gray-700 mb-2">Heure début*</label>
+                                <input type="time" id="heure-debut" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            </div>
+                            <div>
+                                <label for="heure-fin" class="block text-gray-700 mb-2">Heure fin*</label>
+                                <input type="time" id="heure-fin" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="motif" class="block text-gray-700 mb-2">Motif</label>
+                            <textarea id="motif" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
+                        </div>
+
+                        <div class="flex justify-end space-x-3">
+                            <button type="button" id="reset-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg">
+                                Annuler
+                            </button>
+                            <button type="submit" class="bg-[#305CDE] hover:bg-[#2646b1] text-white px-4 py-2 rounded-lg">
+Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des heures enregistrées -->
+        <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Historique des heures supplémentaires</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employé</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Heures</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durée</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motif</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="heures-liste" class="bg-white divide-y divide-gray-200">
+                        <!-- Les heures seront chargées ici dynamiquement -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <!-- Modal pour les employés -->
+    <div id="employee-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Gérer les employés</h3>
+                <button onclick="closeEmployeeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i data-feather="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label for="new-employee-name" class="block text-gray-700 mb-2">Nom complet*</label>
+                    <input type="text" id="new-employee-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label for="new-employee-position" class="block text-gray-700 mb-2">Poste*</label>
+                    <input type="text" id="new-employee-position" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div id="employees-list" class="max-h-60 overflow-y-auto space-y-2">
+                    <!-- Les employés seront chargés ici -->
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeEmployeeModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg">
+                        Annuler
+                    </button>
+                    <button onclick="addEmployee()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">
+                        Ajouter
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+    <script src="script.js"></script>
+    <script src="components/burger-menu.js"></script>
+<script>
+        feather.replace();
+
+        // Vérification de l'authentification
+        if (!localStorage.getItem('isAuthenticated')) {
+            window.location.href = 'admin-login.html';
+        }
+
+        // Configuration du calendrier
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'fr',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                events: JSON.parse(localStorage.getItem('heuresSupplementaires') || '[]').map(heure => ({
+                    title: `${heure.employe} - ${heure.duree}h`,
+                    start: `${heure.date}T${heure.heureDebut}`,
+                    end: `${heure.date}T${heure.heureFin}`,
+                    backgroundColor: '#0d9488',
+                    borderColor: '#0d9488',
+                    extendedProps: heure
+                })),
+                dateClick: function(info) {
+                    document.getElementById('date').value = info.dateStr;
+                    openNoteModal(info.dateStr);
+                },
+                eventClick: function(info) {
+                    const heure = info.event.extendedProps;
+                    document.getElementById('employe').value = heure.employeId;
+                    document.getElementById('date').value = heure.date;
+                    document.getElementById('heure-debut').value = heure.heureDebut;
+                    document.getElementById('heure-fin').value = heure.heureFin;
+                    document.getElementById('motif').value = heure.motif || '';
+                },
+                eventDidMount: function(info) {
+                    if (info.event.extendedProps.note) {
+                        const noteIcon = document.createElement('i');
+                        noteIcon.setAttribute('data-feather', 'file-text');
+                        noteIcon.className = 'w-3 h-3 ml-1 text-blue-500';
+                        info.el.querySelector('.fc-event-title').appendChild(noteIcon);
+                        feather.replace();
+                    }
+                }
+});
+            calendar.render();
+
+            // Chargement de l'historique
+            loadHeuresSupplementaires();
+
+            // Gestion du formulaire
+            document.getElementById('heures-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const employeSelect = document.getElementById('employe');
+                const employeId = employeSelect.value;
+                const employe = employeSelect.options[employeSelect.selectedIndex].text.split(' - ')[0];
+                const date = document.getElementById('date').value;
+                const heureDebut = document.getElementById('heure-debut').value;
+                const heureFin = document.getElementById('heure-fin').value;
+                const motif = document.getElementById('motif').value;
+
+                // Calcul de la durée
+                const debut = new Date(`2000-01-01T${heureDebut}`);
+                const fin = new Date(`2000-01-01T${heureFin}`);
+                const duree = ((fin - debut) / (1000 * 60 * 60)).toFixed(2);
+
+                const nouvelleHeure = {
+                    id: Date.now(),
+                    employeId,
+                    employe,
+                    date,
+                    heureDebut,
+                    heureFin,
+                    duree,
+                    motif,
+                    createdAt: new Date().toISOString()
+                };
+
+                // Sauvegarde dans le localStorage
+                const heures = JSON.parse(localStorage.getItem('heuresSupplementaires') || '[]');
+                heures.push(nouvelleHeure);
+                localStorage.setItem('heuresSupplementaires', JSON.stringify(heures));
+
+                // Rafraîchir l'affichage
+                calendar.refetchEvents();
+                loadHeuresSupplementaires();
+                this.reset();
+
+                // Afficher un message de succès
+                alert('Heures supplémentaires enregistrées avec succès !');
+            });
+
+            // Bouton reset
+            document.getElementById('reset-btn').addEventListener('click', function() {
+                document.getElementById('heures-form').reset();
+            });
+
+            // Gestion de la déconnexion
+            document.getElementById('logout-btn').addEventListener('click', function() {
+                localStorage.removeItem('isAuthenticated');
+                window.location.href = 'admin-login.html';
+            });
+        });
+
+        // Chargement des heures supplémentaires
+        function loadHeuresSupplementaires() {
+            const heures = JSON.parse(localStorage.getItem('heuresSupplementaires') || '[]');
+            const tbody = document.getElementById('heures-liste');
+            
+            tbody.innerHTML = heures.length === 0 ? 
+                '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Aucune heure supplémentaire enregistrée</td></tr>' :
+                heures.map(heure => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${heure.employe}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${new Date(heure.date).toLocaleDateString('fr-FR')}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${heure.heureDebut} - ${heure.heureFin}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${heure.duree}h</td>
+                        <td class="px-6 py-4">${heure.motif || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <button class="text-red-500 delete-heure" data-id="${heure.id}">
+                                <i data-feather="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+
+            // Ajout des événements de suppression
+            document.querySelectorAll('.delete-heure').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (confirm('Supprimer cette entrée ?')) {
+                        const id = parseInt(this.getAttribute('data-id'));
+                        deleteHeureSupplementaire(id);
+                    }
+                });
+            });
+
+            feather.replace();
+        }
+
+        // Suppression d'une heure supplémentaire
+        function deleteHeureSupplementaire(id) {
+            const heures = JSON.parse(localStorage.getItem('heuresSupplementaires') || '[]');
+            const nouvellesHeures = heures.filter(heure => heure.id !== id);
+            localStorage.setItem('heuresSupplementaires', JSON.stringify(nouvellesHeures));
+            loadHeuresSupplementaires();
+            // Rafraîchir le calendrier
+            document.querySelector('#calendar').__fullCalendar.refetchEvents();
+        }
+    </script>
+</body>
+</html>

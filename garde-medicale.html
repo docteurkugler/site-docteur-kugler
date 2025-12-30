@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garde Médicale - Saint-Laurent du Maroni</title>
+    <link rel="icon" type="image/x-icon" href="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/images/logo%20caduce%20kugler.png">
+<link rel="icon" type="image/x-icon" href="images/logo-caduce-kugler.png">
+<link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="font-sans bg-gray-50">
+  <burger-menu></burger-menu>
+<main class="container mx-auto px-4 py-12 relative">
+        <a href="/" class="absolute top-4 left-4 flex items-center text-blue-600 hover:text-blue-800 transition-colors">
+            <i data-feather="arrow-left" class="mr-2 text-blue-600"></i>
+Retour à l'accueil
+        </a>
+
+        <h1 class="text-4xl font-bold text-center mb-12 text-gray-800">Garde des médecins de Saint-Laurent du Maroni</h1>
+        <div class="max-w-4xl mx-auto mb-8">
+            <img src="" id="garde-medicale-image" 
+                 alt="Tableau de garde médicale" 
+                 class="rounded-xl shadow-lg w-full">
+<script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const imageUrl = localStorage.getItem('gardeMedicaleImage') || 
+                            'https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/images/69015.jpg';
+                        document.getElementById('garde-medicale-image').src = imageUrl;
+                    });
+                </script>
+            </div>
+</div>
+    </main>
+
+    <custom-footer></custom-footer>
+    <script src="components/footer.js"></script>
+    <script src="components/burger-menu.js"></script>
+<script src="script.js"></script>
+    <script>
+        feather.replace();
+    </script>
+</body>
+</html>

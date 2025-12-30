@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Postuler - Dr. Philippe Kugler</title>
+    <link rel="icon" type="image/x-icon" href="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/images/logo%20caduce%20kugler.png">
+<link rel="icon" type="image/x-icon" href="images/logo-caduce-kugler.png">
+<link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="font-sans bg-gray-50 flex flex-col min-h-screen">
+<burger-menu></burger-menu>
+<main class="container mx-auto px-4 py-12 relative">
+        <a href="/" class="absolute top-4 left-4 flex items-center text-blue-600 hover:text-blue-800 transition-colors">
+            <i data-feather="arrow-left" class="mr-2 text-blue-600"></i>
+Retour à l'accueil
+        </a>
+
+        <h1 class="text-4xl font-bold text-center mb-12 text-gray-800">Postuler au cabinet</h1>
+
+        <div class="bg-white rounded-xl shadow-md p-6 max-w-4xl mx-auto">
+            <div class="space-y-6">
+                <p class="text-gray-600">
+                    Vous souhaitez rejoindre notre équipe ? Envoyez-nous votre CV et lettre de motivation.
+                </p>
+                <form id="candidature-form" class="space-y-4" enctype="multipart/form-data">
+                    <div>
+                            <label for="poste" class="block text-gray-700 mb-2">Poste recherché*</label>
+<input type="text" id="poste" name="poste" required 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                    </div>
+                    <div>
+                        <label for="message" class="block text-gray-700 mb-2">Message*</label>
+<textarea id="message" name="message" rows="4"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"></textarea>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div>
+                            <label for="cv-file" class="block text-gray-700 mb-2">CV (PDF)*</label>
+<div class="flex items-center gap-2">
+                                <label for="cv-file" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition flex items-center gap-2">
+                                    <i data-feather="upload" class="w-4 h-4"></i>
+                                    CV
+                                </label>
+                                <input type="file" id="cv-file" name="cv" accept=".pdf" required class="hidden">
+                                <span id="cv-filename" class="text-sm text-gray-500 truncate max-w-xs">Aucun fichier sélectionné</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="motivation-file" class="block text-gray-700 mb-2">Lettre de motivation (PDF)*</label>
+<div class="flex items-center gap-2">
+                                <label for="motivation-file" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition flex items-center gap-2">
+                                    <i data-feather="upload" class="w-4 h-4"></i>
+                                    Lettre
+                                </label>
+                                <input type="file" id="motivation-file" name="motivation" accept=".pdf" required class="hidden">
+                                <span id="motivation-filename" class="text-sm text-gray-500 truncate max-w-xs">Aucun fichier sélectionné</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2 mb-4">
+                        <input type="checkbox" id="candidate-robot-check" required class="mt-1">
+                        <label for="candidate-robot-check" class="text-gray-700">Je ne suis pas un robot</label>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-4">Les champs marqués par un astérisque (*) sont obligatoires</p>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition duration-300">
+Envoyer ma candidature
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <div class="mt-auto">
+        <custom-footer></custom-footer>
+    </div>
+    
+    <script src="components/burger-menu.js"></script>
+    <script src="components/footer.js"></script>
+    <script src="script.js"></script>
+<script>
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+            
+            // Gestion des fichiers
+            document.getElementById('cv-file').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    document.getElementById('cv-filename').textContent = file.name;
+                }
+            });
+            
+            document.getElementById('motivation-file').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    document.getElementById('motivation-filename').textContent = file.name;
+                }
+            });
+            
+            // Gestion du formulaire de candidature
+            document.getElementById('candidature-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const form = e.target;
+                const formData = new FormData(form);
+                fetch('https://formspree.io/f/philippe@docteurkugler.fr', {
+method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Votre candidature a été envoyée avec succès. Nous vous contacterons si votre profil correspond à nos besoins.');
+                        form.reset();
+                        document.getElementById('cv-filename').textContent = 'Aucun fichier sélectionné';
+                        document.getElementById('motivation-filename').textContent = 'Aucun fichier sélectionné';
+                    } else {
+                        throw new Error('Erreur lors de l\'envoi de la candidature');
+                    }
+                })
+                .catch(error => {
+                    alert('Une erreur est survenue. Veuillez réessayer ou nous contacter par téléphone.');
+                    console.error('Error:', error);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

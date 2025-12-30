@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. Philippe Kugler - Cabinet Médical Quartier Vampire</title>
+    <link rel="icon" type="image/x-icon" href="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/images/logo%20caduce%20kugler.png">
+<link rel="stylesheet" href="style.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="font-sans bg-gray-50">
+  <script src="components/burger-menu.js"></script>
+  <main class="container mx-auto px-4 pt-20 pb-8">
+<!-- Hero Section -->
+    <section class="w-full text-white relative overflow-hidden" style="height: 75vh; min-height: 600px;">
+        <img src="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/images/image%20arbre%20kugler.jpg" 
+             alt="Cabinet Médical Dr. Kugler"
+             class="absolute inset-0 w-full h-full object-cover object-center">
+<div class="absolute inset-0 bg-black bg-opacity-40"></div>
+            <div class="relative z-10 h-full flex flex-col items-center justify-center">
+            <div class="max-w-4xl mx-auto text-center px-4 relative z-10">
+<h2 class="text-4xl md:text-6xl font-bold text-white">Dr Philippe Kugler</h2>
+<p class="text-2xl md:text-3xl font-semibold text-white mb-2">Médecin généraliste</p>
+</div>
+<div class="burger-wrapper fixed top-4 right-4 z-50">
+<burger-menu></burger-menu>
+</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+<!-- About Section -->
+    <section class="mb-12">
+      <div class="bg-white rounded-xl shadow-md p-6 max-w-2xl mx-auto">
+        <p class="text-gray-600 font-bold text-center">Médecin généraliste installé à Saint-Laurent du Maroni depuis 2024, le cabinet propose des consultations médicales pour toute la famille dans le quartier Vampire.</p>
+      </div>
+    </section>
+<!-- Schedule Section -->
+    <section id="horaires" class="mb-8">
+      <h2 class="text-3xl font-bold mb-6 text-center text-gray-800">Horaires de consultation</h2>
+<div class="bg-white rounded-xl shadow-md p-6 max-w-2xl mx-auto">
+<div class="space-y-4">
+          <div class="border-b pb-4">
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">Matin (consultation libre)</h3>
+            <p class="text-gray-600">7h00 - 14h00</p>
+            <p class="text-sm text-gray-500 mt-1">Consultations sans rendez-vous</p>
+          </div>
+          <div class="border-b pb-4">
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">Après-midi (sur rendez-vous)</h3>
+            <p class="text-gray-600">14h00 - 15h00</p>
+          </div>
+                        <div class="mt-6 space-y-4">
+                            <div class="flex items-center gap-3 bg-gray-100 p-3 rounded-lg">
+                                <audio controls class="w-full max-w-md">
+                                    <source src="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/audio/Voix%20Saramacca.m4a" type="audio/mp4">
+                                    Votre navigateur ne supporte pas l'élément audio.
+                                </audio>
+                                <span class="text-sm text-gray-600 font-bold">Saramaka</span>
+</div>
+                            
+                            <div class="flex items-center gap-3 bg-gray-100 p-3 rounded-lg">
+                                <audio controls class="w-full max-w-md">
+                                    <source src="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/audio/Voix%20Djuka.m4a" type="audio/mp4">
+                                    Votre navigateur ne supporte pas l'élément audio.
+                                </audio>
+                                <span class="text-sm text-gray-600 font-bold">Djuka</span>
+</div>
+                            
+                            <div class="flex items-center gap-3 bg-gray-100 p-3 rounded-lg">
+                                <audio controls class="w-full max-w-md">
+                                    <source src="https://huggingface.co/spaces/Destine-Studio/dr-kugler-s-vampire-medical-haven/resolve/main/audio/Voix%20cr%C3%A9ole%20ha%C3%AFtien.m4a" type="audio/mp4">
+                                    Votre navigateur ne supporte pas l'élément audio.
+                                </audio>
+                                <span class="text-sm text-gray-600 font-bold">Créole</span>
+</div>
+                        </div>
+</div>
+</section>
+
+    <!-- Documents Section -->
+    <section id="documents" class="mb-12">
+      <h2 class="text-3xl font-bold mb-6 text-center text-gray-800">Documents à fournir</h2>
+      <div class="bg-white rounded-xl shadow-md p-6 max-w-2xl mx-auto">
+                    <ul class="list-disc pl-5 text-gray-600 space-y-3">
+                        <li class="font-medium">Carte Vitale ou carte AME</li>
+                        <li class="font-medium">Attestation de droits</li>
+                        <li class="font-medium">Attestation de tiers payant (Mutuelle)</li>
+                        <li class="font-medium">Carnet de santé pour les enfants</li>
+                        <li class="font-medium">Carnet de vaccination</li>
+                        <li class="font-medium">Document d'identité</li>
+                    </ul>
+</div>
+    </section>
+</main>
+<custom-footer></custom-footer>
+  <script src="components/burger-menu.js"></script>
+  <script src="components/header.js"></script>
+  <script src="components/footer.js"></script>
+<script src="script.js"></script>
+  <script>
+    feather.replace();
+  </script>
+</body>
+
+</html>
+<!-- Site créé par Destine Studio - https://info.destine.studio -->
